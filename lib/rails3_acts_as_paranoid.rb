@@ -1,38 +1,39 @@
 require 'active_record'
+require 'core_ext'
 require 'validations/uniqueness_without_deleted'
 
 module ActsAsParanoid
-  
+
   def paranoid?
     self.included_modules.include?(InstanceMethods)
   end
-  
+
   def validates_as_paranoid
     extend ParanoidValidations::ClassMethods
   end
-  
+
   def acts_as_paranoid(options = {})
     raise ArgumentError, "Hash expected, got #{options.class.name}" if not options.is_a?(Hash) and not options.empty?
-    
+
     class << self
       attr_accessor :paranoid_configuration, :paranoid_column_reference
     end
-     
+
     @paranoid_configuration = { :column => "deleted_at", :column_type => "time", :recover_dependent_associations => true, :dependent_recovery_window => 5.minutes }.merge(options)
 
     raise ArgumentError, "'time' or 'boolean' expected for :column_type option, got #{paranoid_configuration[:column_type]}" unless ['time', 'boolean'].include? paranoid_configuration[:column_type]
 
     @paranoid_column_reference = "#{self.table_name}.#{paranoid_configuration[:column]}"
-    
+
     return if paranoid?
 
     ActiveRecord::Relation.class_eval do
       alias_method :delete_all!, :delete_all
       alias_method :destroy!, :destroy
     end
-    
+
     default_scope where("#{paranoid_column_reference} IS ?", nil) # Magic!
-    
+
     scope :paranoid_deleted_around_time, lambda {|value, window|
       if self.class.respond_to?(:paranoid?) && self.class.paranoid?
         if self.class.paranoid_column_type == 'time' && ![true, false].include?(value)
@@ -42,13 +43,13 @@ module ActsAsParanoid
         end
       end
     }
-    
+
     include InstanceMethods
     extend ClassMethods
   end
 
   module ClassMethods
-    
+
     def with_deleted
       self.unscoped.reload
     end
@@ -76,7 +77,7 @@ module ActsAsParanoid
     def dependent_associations
       self.reflect_on_all_associations.select {|a| [:delete_all, :destroy].include?(a.options[:dependent]) }
     end
-  
+
     def delete_now_value
       case paranoid_configuration[:column_type]
         when "time" then Time.now
@@ -84,13 +85,13 @@ module ActsAsParanoid
       end
     end
   end
-  
+
   module InstanceMethods
-    
+
     def paranoid_value
       self.send(self.class.paranoid_column)
     end
-  
+
     def destroy!
       with_transaction_returning_status do
         run_callbacks :destroy do
@@ -113,7 +114,7 @@ module ActsAsParanoid
         end
       end
     end
-    
+
     def recover(options={})
       options = {
                   :recursive => self.class.paranoid_configuration[:recover_dependent_associations],
@@ -154,14 +155,14 @@ module ActsAsParanoid
       !paranoid_value.nil?
     end
     alias_method :destroyed?, :deleted?
-    
+
   private
     def paranoid_value=(value)
       self.send("#{self.class.paranoid_column}=", value)
     end
-    
+
   end
-  
+
 end
 
 # Extend ActiveRecord's functionality
