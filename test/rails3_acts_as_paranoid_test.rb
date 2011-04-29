@@ -4,7 +4,7 @@ class ParanoidBaseTest < ActiveSupport::TestCase
   def assert_empty(collection)
     assert(collection.respond_to?(:empty?) && collection.empty?)
   end
-  
+
   def setup
     setup_db
 
@@ -27,14 +27,20 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 3, ParanoidTime.count
     assert_equal 3, ParanoidBoolean.count
 
-    ParanoidTime.first.destroy
+    @paranoid_time = ParanoidTime.first
+    @paranoid_time.destroy
+
+    assert_equal @paranoid_time, ParanoidTime.find(@paranoid_time.id)
+
     ParanoidBoolean.delete_all("name = 'paranoid' OR name = 'really paranoid'")
     assert_equal 2, ParanoidTime.count
     assert_equal 1, ParanoidBoolean.count
-    assert_equal 1, ParanoidTime.only_deleted.count 
+    assert_equal 1, ParanoidTime.only_deleted.count
     assert_equal 2, ParanoidBoolean.only_deleted.count
     assert_equal 3, ParanoidTime.with_deleted.count
     assert_equal 3, ParanoidBoolean.with_deleted.count
+
+
   end
 
   def test_real_removal
@@ -53,14 +59,14 @@ class ParanoidTest < ParanoidBaseTest
 
     ParanoidTime.delete_all!
     assert_empty ParanoidTime.all
-    assert_empty ParanoidTime.with_deleted.all    
+    assert_empty ParanoidTime.with_deleted.all
   end
 
   def test_paranoid_scope
     assert_raise(NoMethodError) { NotParanoid.delete_all! }
     assert_raise(NoMethodError) { NotParanoid.first.destroy! }
     assert_raise(NoMethodError) { NotParanoid.with_deleted }
-    assert_raise(NoMethodError) { NotParanoid.only_deleted }    
+    assert_raise(NoMethodError) { NotParanoid.only_deleted }
   end
 
   def test_recovery
@@ -149,25 +155,25 @@ class ParanoidTest < ParanoidBaseTest
     ParanoidTime.first.destroy
     assert ParanoidTime.with_deleted.first.deleted?
   end
-  
-  def test_paranoid_destroy_callbacks    
+
+  def test_paranoid_destroy_callbacks
     @paranoid_with_callback = ParanoidWithCallback.first
     ParanoidWithCallback.transaction do
       @paranoid_with_callback.destroy
     end
-    
+
     assert @paranoid_with_callback.called_before_destroy
     assert @paranoid_with_callback.called_after_destroy
     assert @paranoid_with_callback.called_after_commit_on_destroy
   end
-  
+
   def test_hard_destroy_callbacks
     @paranoid_with_callback = ParanoidWithCallback.first
-    
+
     ParanoidWithCallback.transaction do
       @paranoid_with_callback.destroy!
     end
-    
+
     assert @paranoid_with_callback.called_before_destroy
     assert @paranoid_with_callback.called_after_destroy
     assert @paranoid_with_callback.called_after_commit_on_destroy
@@ -195,7 +201,7 @@ class ValidatesUniquenessTest < ParanoidBaseTest
   end
 end
 
-class AssociationsTest < ParanoidBaseTest  
+class AssociationsTest < ParanoidBaseTest
   def test_removal_with_associations
     # This test shows that the current implementation doesn't handle
     # assciation deletion correctly (when hard deleting via parent-object)
@@ -203,7 +209,7 @@ class AssociationsTest < ParanoidBaseTest
     paranoid_company_2 = ParanoidDeleteCompany.create! :name => "ParanoidDestroyCompany #1"
     paranoid_company_1.paranoid_products.create! :name => "ParanoidProduct #1"
     paranoid_company_2.paranoid_products.create! :name => "ParanoidProduct #2"
-    
+
     assert_equal 1, ParanoidDestroyCompany.count
     assert_equal 1, ParanoidDeleteCompany.count
     assert_equal 2, ParanoidProduct.count
@@ -213,18 +219,18 @@ class AssociationsTest < ParanoidBaseTest
     assert_equal 1, ParanoidProduct.count
     assert_equal 1, ParanoidDestroyCompany.with_deleted.count
     assert_equal 2, ParanoidProduct.with_deleted.count
-	
+
     ParanoidDestroyCompany.with_deleted.first.destroy!
     assert_equal 0, ParanoidDestroyCompany.count
     assert_equal 1, ParanoidProduct.count
     assert_equal 0, ParanoidDestroyCompany.with_deleted.count
-    assert_equal 1, ParanoidProduct.with_deleted.count
-    
+    assert_equal 2, ParanoidProduct.with_deleted.count
+
     ParanoidDeleteCompany.with_deleted.first.destroy!
     assert_equal 0, ParanoidDeleteCompany.count
     assert_equal 0, ParanoidProduct.count
     assert_equal 0, ParanoidDeleteCompany.with_deleted.count
-    assert_equal 0, ParanoidProduct.with_deleted.count
+    assert_equal 2, ParanoidProduct.with_deleted.count
   end
 end
 
@@ -235,7 +241,7 @@ class InheritanceTest < ParanoidBaseTest
     has_many_inherited_super_paranoidz.super_paranoidz.create
     assert_nothing_raised(NoMethodError) { has_many_inherited_super_paranoidz.destroy }
   end
-  
+
   def test_class_instance_variables_are_inherited
     assert_nothing_raised(ActiveRecord::StatementInvalid) { InheritedParanoid.paranoid_column }
   end

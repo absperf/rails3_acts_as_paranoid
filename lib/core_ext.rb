@@ -1,44 +1,28 @@
 module ActiveRecord
   module FinderMethods
 
-  def find_one(id)
-      id = id.id if ActiveRecord::Base === id
+    alias :old_find_one :find_one
+    alias :old_find_some :find_some
 
-      record = unscoped.where(primary_key.eq(id)).first
-
-      unless record
-        conditions = arel.where_sql
-        conditions = " [#{conditions}]" if conditions
-        raise RecordNotFound, "Couldn't find #{@klass.name} with ID=#{id}#{conditions}"
-      end
-
-      record
+    def find_one(id)
+      ignore_deleted_at_is_nil_condition
+      old_find_one(id)
     end
 
     def find_some(ids)
-      result = unscoped.where(primary_key.in(ids)).all
+      ignore_deleted_at_is_nil_condition
+      old_find_some(ids)
+    end
 
-      expected_size =
-        if @limit_value && ids.size > @limit_value
-          @limit_value
-        else
-          ids.size
+    private
+
+    def ignore_deleted_at_is_nil_condition
+      @where_values = @where_values.reject do |c|
+        if c.kind_of? String
+          c == "#{table.name}.deleted_at IS NULL"
+        elsif c.kind_of? Arel::Nodes::Equality
+          c.right.nil? && c.left && c.left.kind_of?(Arel::Attributes::Attribute) && c.left.name == 'deleted_at'
         end
-
-      # 11 ids with limit 3, offset 9 should give 2 results.
-      if @offset_value && (ids.size - @offset_value < expected_size)
-        expected_size = ids.size - @offset_value
-      end
-
-      if result.size == expected_size
-        result
-      else
-        conditions = arel.wheres.map { |x| x.value }.join(', ')
-        conditions = " [WHERE #{conditions}]" if conditions.present?
-
-        error = "Couldn't find all #{@klass.name.pluralize} with IDs "
-        error << "(#{ids.join(", ")})#{conditions} (found #{result.size} results, but was looking for #{expected_size})"
-        raise RecordNotFound, error
       end
     end
   end
