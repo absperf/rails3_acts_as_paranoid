@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name              = "rails3_acts_as_paranoid"
-  s.version           = "0.0.7"
+  s.version           = "0.0.8"
   s.platform          = Gem::Platform::RUBY
   s.authors           = ["Gonçalo Silva"]
   s.email             = ["goncalossilva@gmail.com"]
@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.rubyforge_project = s.name
 
   s.required_rubygems_version = ">= 1.3.7"
-  
+
   s.add_dependency "activerecord", ">= 3.0"
 
   s.files        = Dir["{lib}/**/*.rb", "LICENSE", "*.markdown"]
