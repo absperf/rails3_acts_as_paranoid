@@ -106,8 +106,9 @@ module ActsAsParanoid
       with_transaction_returning_status do
         run_callbacks :destroy do
           if paranoid_value.nil?
-            #self.class.delete_all(:id => self.id)
-            self.update_attributes(self.class.paranoid_column.to_sym => self.class.delete_now_value)
+            updates = { self.class.paranoid_column.to_sym => self.class.delete_now_value }
+            updates[:updated_at] = Time.now if self.respond_to?(:updated_at)
+            self.class.update_all updates, :id => self.id
           else
             self.class.delete_all!(:id => self.id)
           end
